@@ -1,0 +1,62 @@
+{
+	"name": "ExportAndImportAOsDF",
+	"properties": {
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"linkedService": {
+						"referenceName": "geweAzureMySql1fgweg",
+						"type": "LinkedServiceReference"
+					},
+					"name": "ReadArchivedOrdersFromHybris",
+					"description": ""
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "CosmosDbSqlArchivedOrdersCollectionDataset",
+						"type": "DatasetReference"
+					},
+					"name": "WriteArchivedOrdersToCosmosDB",
+					"description": ""
+				}
+			],
+			"transformations": [
+				{
+					"name": "SetSource",
+					"description": ""
+				},
+				{
+					"name": "SetPartitionKeyAndId",
+					"description": ""
+				},
+				{
+					"name": "SetDates",
+					"description": ""
+				},
+				{
+					"name": "SetEmptyFieldIfStringIsNull",
+					"description": ""
+				},
+				{
+					"name": "SetVersion",
+					"description": ""
+				},
+				{
+					"name": "SetTimeToLive",
+					"description": ""
+				},
+				{
+					"name": "SetBoolean",
+					"description": ""
+				},
+				{
+					"name": "DoUpsertForAllOrdersOnSink"
+				}
+			],
+			"script": "parameters{\n\tYEARS_TO_LIVE as integer (8),\n\tVERSION as string (\"LEGACY\"),\n\tODP_SOURCE as string (\"SFS\"),\n\tOLD_CAR_SOURCE as string (\"LEGACY\"),\n\tSYSTEM_TABLE_NAME as string (\"enumerationvalues\"),\n\tBANNER as string (\"\"),\n\tFROM_DATE as string ('2021-11-01')\n}\nsource(output(\n\t\tbanner as string,\n\t\torderCode as string,\n\t\todp as boolean,\n\t\torderStatus as string,\n\t\tstoreNumber as string,\n\t\tcreationTime as timestamp,\n\t\tcustomerEmail as string,\n\t\tcustomerFirstname as string,\n\t\tcustomerLastname as string,\n\t\tcustomerName as string,\n\t\tcollectorName as string,\n\t\tcollectorEmail as string,\n\t\tcustomerAddress1 as string,\n\t\tcustomerAddress2 as string,\n\t\tcustomerPostalCode as string,\n\t\trefNumber as string,\n\t\tloyaltyNumber as long,\n\t\tbrowserIP as string,\n\t\tfraudulent as boolean,\n\t\tpotentiallyFraudulent as boolean,\n\t\thasFraudReports as boolean,\n\t\tfraudScore as double,\n\t\tcardNumber as string,\n\t\tproductCodes as string,\n\t\trepairOrderNumbers as string,\n\t\tdeliveryModes as string,\n\t\tpackageLocationIds as string,\n\t\thasRepairOrderRequiredProducts as boolean,\n\t\thasShipWithStoreCarrierPackages as boolean,\n\t\tlastStatusChangeDate as timestamp,\n\t\tbaseStore as string,\n\t\thasLoyaltyTender as boolean,\n\t\tsubscriptionId as string,\n\t\thasHomeServiceEntries as boolean,\n\t\thasSpecialOrderProducts as boolean,\n\t\tjsonData as string,\n\t\tuser as string,\n\t\tgigyaUid as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false,\n\tlimit: 1300000,\n\tformat: 'query',\n\tquery: (concat(\"SELECT banner.p_id AS banner, archivedOrder.p_ordercode AS orderCode, archivedOrder.p_odp AS odp, status.Code AS orderStatus, archivedOrder.p_storenumber AS storeNumber, archivedOrder.createdTS AS creationTime, archivedOrder.p_customeremail AS customerEmail, archivedOrder.p_customerfirstname AS customerFirstname, archivedOrder.p_customerlastname AS customerLastname, archivedOrder.p_customername AS customerName, archivedOrder.p_collectorname AS collectorName, archivedOrder.p_collectoremail AS collectorEmail, archivedOrder.p_customeraddress1 AS customerAddress1, archivedOrder.p_customeraddress2 AS customerAddress2, archivedOrder.p_customerpostalcode AS customerPostalCode, archivedOrder.p_refnumber AS refNumber, archivedOrder.p_loyaltynumber AS loyaltyNumber, archivedOrder.p_browserip AS browserIP, archivedOrder.p_fraudulent AS fraudulent, archivedOrder.p_potentiallyfraudulent AS potentiallyFraudulent, archivedOrder.p_hasfraudreports AS hasFraudReports, archivedOrder.p_totalfraudscore AS fraudScore, archivedOrder.p_cardnumber AS cardNumber, archivedOrder.p_productcodes AS productCodes, archivedOrder.p_repairordernumbers AS repairOrderNumbers, archivedOrder.p_deliverymodes AS deliveryModes, archivedOrder.p_packagelocationids AS packageLocationIds, archivedOrder.p_hasrepairorderrequiredproduc AS hasRepairOrderRequiredProducts, archivedOrder.p_hasshipwithstorecarrierpacka AS hasShipWithStoreCarrierPackages, archivedOrder.p_laststatuschangedate AS lastStatusChangeDate, archivedOrder.p_store AS baseStore, archivedOrder.p_hasloyaltytender AS hasLoyaltyTender, archivedOrder.p_subscriptionid AS subscriptionId, archivedOrder.p_hashomeserviceentries AS hasHomeServiceEntries, archivedOrder.p_hasspecialorderproducts AS hasSpecialOrderProducts, archivedOrder.p_jsondata AS jsonData, user.UniqueID AS user, user.Name AS gigyaUid FROM ctcarchivedorder AS archivedOrder LEFT JOIN cmssite AS cmssite ON cmssite.PK = archivedOrder.p_site LEFT JOIN ctcbanners AS banner ON banner.p_basesite = cmssite.PK LEFT JOIN \", $SYSTEM_TABLE_NAME, \" AS status ON  archivedOrder.p_status = status.PK LEFT JOIN users AS user ON user.UniqueID = archivedOrder.p_user WHERE ('\", $BANNER,  \"' = '' OR banner.p_id = '\", $BANNER, \"') AND ('\", $FROM_DATE, \"' = '' OR archivedOrder.createdTS > '\", $FROM_DATE, \"')\")),\n\tstore: 'mysql',\n\tisolationLevel: 'READ_UNCOMMITTED') ~> ReadArchivedOrdersFromHybris\nSetVersion derive(source = iif(odp, $ODP_SOURCE, $OLD_CAR_SOURCE)) ~> SetSource\nSetSource derive(partitionKey = source + \"_\" + banner + \"_\" + orderCode,\n\t\tid = source + \"_\" + banner + \"_\" + orderCode) ~> SetPartitionKeyAndId\nSetPartitionKeyAndId derive(orderDate = toString(creationTime, 'yyyy-MM-dd\\'T\\'HH:mm:ss.SSSZ'),\n\t\tlastStatusChangeDate = toString(lastStatusChangeDate, 'yyyy-MM-dd\\'T\\'HH:mm:ss.SSSZ'),\n\t\t{_lastStatusChangeDateTS} = toLong(lastStatusChangeDate),\n\t\t{_orderDateTS} = toLong(creationTime)) ~> SetDates\nSetBoolean derive(each(match(type=='string'), $$ = iif(isNull($$), \"\", $$))) ~> SetEmptyFieldIfStringIsNull\nReadArchivedOrdersFromHybris derive(version = $VERSION) ~> SetVersion\nSetDates derive(ttl = toInteger(toLong(addMonths(creationTime, $YEARS_TO_LIVE * 12))/1000)) ~> SetTimeToLive\nSetTimeToLive derive(each(match(type=='boolean'), $$ = iif(isNull($$), false(), $$))) ~> SetBoolean\nSetEmptyFieldIfStringIsNull alterRow(upsertIf(true())) ~> DoUpsertForAllOrdersOnSink\nDoUpsertForAllOrdersOnSink sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tdeletable:false,\n\tinsertable:true,\n\tupdateable:false,\n\tupsertable:true,\n\tformat: 'document',\n\tpartitionKey: ['/partitionKey'],\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tmapColumn(\n\t\tbanner,\n\t\torderCode,\n\t\tstoreNumber,\n\t\tcustomerEmail,\n\t\tcustomerFirstname,\n\t\tcustomerLastname,\n\t\tcustomerName,\n\t\tcollectorName,\n\t\tcollectorEmail,\n\t\tcustomerAddress1,\n\t\tcustomerAddress2,\n\t\tcustomerPostalCode,\n\t\trefNumber,\n\t\tloyaltyNumber,\n\t\tbrowserIP,\n\t\tpotentiallyFraudulent,\n\t\thasFraudReports,\n\t\tfraudScore,\n\t\tcardNumber,\n\t\tproductCodes,\n\t\trepairOrderNumbers,\n\t\tdeliveryModes,\n\t\tpackageLocationIds,\n\t\thasRepairOrderRequiredProducts,\n\t\thasShipWithStoreCarrierPackages,\n\t\tbaseStore,\n\t\thasLoyaltyTender,\n\t\tsubscriptionId,\n\t\thasHomeServiceEntries,\n\t\thasSpecialOrderProducts,\n\t\tuser,\n\t\tgigyaUid,\n\t\tjsonData,\n\t\tsource,\n\t\tpartitionKey,\n\t\torderStatus,\n\t\t{_lastStatusChangeDateTS},\n\t\t{_orderDateTS},\n\t\tversion,\n\t\torderDate,\n\t\tlastStatusChangeDate,\n\t\tttl,\n\t\tfraudulent,\n\t\tid\n\t)) ~> WriteArchivedOrdersToCosmosDB"
+		}
+	}
+}

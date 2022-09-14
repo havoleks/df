@@ -1,0 +1,43 @@
+{
+	"name": "ExportAndImportAOsPipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "ExportAndImportAOsDF",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "ExportAndImportAOsDF",
+						"type": "DataFlowReference",
+						"parameters": {
+							"YEARS_TO_LIVE": "8",
+							"VERSION": "\"LEGACY\"",
+							"ODP_SOURCE": "\"SFS\"",
+							"OLD_CAR_SOURCE": "\"LEGACY\"",
+							"SYSTEM_TABLE_NAME": "\"enumerationvalues\"",
+							"BANNER": "\"\"",
+							"FROM_DATE": "'2021-11-01'"
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					},
+					"traceLevel": "Fine",
+					"runConcurrently": true
+				}
+			}
+		],
+		"annotations": [],
+		"lastPublishTime": "2022-08-26T06:26:46Z"
+	}
+}
